@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ros:Package xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ros="http://ros/1.0" name="home_command_manager" author="Joffrey Kriegel" author_email="kriegel.joffrey@gmail.com" description="The home_command_manager package" license="GPLv3">
+  <node name="home_command_manager" frequency="10.0">
+    <publisher name="command1" msg="std_msgs::Empty"/>
+    <publisher name="command2" msg="std_msgs::Empty"/>
+    <publisher name="command3" msg="std_msgs::Empty"/>
+    <publisher name="command4" msg="std_msgs::Empty"/>
+    <publisher name="command5" msg="std_msgs::Empty"/>
+    <publisher name="command6" msg="std_msgs::Empty"/>
+    <publisher name="command7" msg="std_msgs::Empty"/>
+    <publisher name="command8" msg="std_msgs::Empty"/>
+    <publisher name="command9" msg="std_msgs::Empty"/>
+    <publisher name="command10" msg="std_msgs::Empty"/>
+    <publisher name="command11" msg="std_msgs::Empty"/>
+    <publisher name="command12" msg="std_msgs::Empty"/>
+    <publisher name="command13" msg="std_msgs::Empty"/>
+    <publisher name="command14" msg="std_msgs::Empty"/>
+    <subscriber name="command" msg="std_msgs::Int32"/>
+  </node>
+  <depend>std_msgs</depend>
+</ros:Package>

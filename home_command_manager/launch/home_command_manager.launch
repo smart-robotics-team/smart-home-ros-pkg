@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- Home command manager -->
+  <node pkg="home_command_manager" type="home_command_manager" respawn="true" name="HOME_command_manager" output="screen">
+        <remap from="/command" to="/HOME/command" />
+        <remap from="/command1" to="/JO/wake_up" />
+        <remap from="/command2" to="/CAROLE/wake_up" />
+        <remap from="/command3" to="/BOTH/wake_up" />
+        <remap from="/command4" to="/JO/sleep" />
+        <remap from="/command5" to="/CAROLE/sleep" />
+        <remap from="/command6" to="/BOTH/sleep" />
+        <remap from="/command7" to="/BOTH/eat" />
+        <remap from="/command8" to="/BOTH/shower" />
+        <remap from="/command9" to="/JO/go_out" />
+        <remap from="/command10" to="/CAROLE/go_out" />
+        <remap from="/command11" to="/BOTH/go_out" />
+        <remap from="/command12" to="/JO/back_home" />
+        <remap from="/command13" to="/CAROLE/back_home" />
+        <remap from="/command14" to="/BOTH/back_home" />
+  </node> 
+
+
+</launch>
