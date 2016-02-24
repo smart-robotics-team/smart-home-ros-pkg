@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-""" random_patrol_smach.py - Version 1.0 2013-04-12
+""" .py - Version 1.0 2016-02-20
 
     Control a robot to patrol four waypoints chosen at random
 
-    Created for the Pi Robot Project: http://www.pirobot.org
-    Copyright (c) 2014 Patrick Goebel.  All rights reserved.
+    Created for 
+    Copyright (c) 2016 Joffrey Kriegel.  All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ import smach
 from smach import State, StateMachine, Concurrence, Container, UserData
 from smach_ros import MonitorState, ServiceState, SimpleActionState, IntrospectionServer
 from actionlib import GoalStatus
-from std_msgs.msg import UInt16, Int32, Empty
+from std_msgs.msg import UInt16, Int32, Empty, String
 from random import randrange
 from tf.transformations import quaternion_from_euler
 from math import  pi
@@ -42,6 +42,589 @@ class Pause(State):
         rospy.loginfo("Thinking...")
         rospy.sleep(0.5)   
         return 'succeeded'
+
+
+class PreparingShower(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded','aborted','preempted'])
+        self.heat_pub = rospy.Publisher('/HOME/showerHeatON', Empty)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+        pass
+
+    def execute(self, userdata):
+        if (self.jo_status != 0) and (self.carole_status != 0): # No one is available for a shower
+		rospy.loginfo("No shower possible")
+		return 'aborted'
+        elif ((self.jo_status == 0) and (self.carole_status != 0)) or ((self.jo_status != 0) and (self.carole_status == 0)): # No sound
+		rospy.loginfo("Heating...")
+        	self.heat_pub.publish(Empty())
+        	rospy.sleep(300)
+        	return 'succeeded'
+	else :
+		rospy.loginfo("Heating...")
+                my_string = String()
+                my_string.data = "La salle de bain est en train de chauffer. Vous pourrez l'utiliser dans cinq minutes."
+                self.french_pub.publish(my_string)
+                self.heat_pub.publish(Empty())
+                rospy.sleep(300)
+		return 'succeeded'
+
+class GoShower(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded','aborted','preempted'])
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+        pass
+
+    def execute(self, userdata):
+        rospy.loginfo("Going into shower...")
+	if (self.jo_status != 1) and (self.carole_status != 1):
+        	my_string = String()
+        	my_string.data = "La salle de bain est chaude. Vous pouvez aller vous doucher."
+        	self.french_pub.publish(my_string)
+        rospy.sleep(600)
+        return 'succeeded'
+
+class StopShower(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded','aborted','preempted'])
+        self.heat_pub = rospy.Publisher('/HOME/showerHeatOFF', Empty)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+        pass
+
+    def execute(self, userdata):
+        rospy.loginfo("Stop shower...")
+        if (self.jo_status != 1) and (self.carole_status != 1):
+		my_string = String()
+        	my_string.data = "Il est temps de sortir de la douche."
+        	self.french_pub.publish(my_string)
+        self.heat_pub.publish(Empty())
+        rospy.sleep(1)
+        return 'succeeded'
+
+class JoGoingSleep(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+	self.jo_status = 1
+
+	if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+                myint = Int32() 
+                rospy.sleep(0.01)
+                self.ON3_pub.publish(Empty())
+                rospy.sleep(0.01)
+                self.ON2_pub.publish(Empty())
+                rospy.sleep(0.01)
+                myint.data = 175
+                self.color3_pub.publish(myint)
+                rospy.sleep(0.01)
+                myint.data = 10
+                self.brightness2_pub.publish(myint)
+                rospy.sleep(0.01)
+                myint.data = 9
+                self.brightness3_pub.publish(myint)
+                rospy.sleep(0.01)
+
+
+	else:
+        	tosay = String()
+        	myint = Int32()
+        	tosay.data = "Il est l'heure d'aller dormir."
+        	self.french_pub.publish(tosay)
+		rospy.sleep(0.01)
+		self.ON3_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.ON2_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.ON1_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	myint.data = 175
+        	self.color1_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	self.color3_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	myint.data = 2
+        	self.brightness1_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	myint.data = 10
+        	self.brightness2_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	myint.data = 9
+        	self.brightness3_pub.publish(myint)
+        	rospy.sleep(0.01)
+
+        return 'succeeded'
+
+class JoInBed(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+
+        if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+ 
+                myint = Int32()
+                myint.data = 6
+                self.brightness2_pub.publish(myint)
+                rospy.sleep(0.01)
+                myint.data = 6
+                self.brightness3_pub.publish(myint)
+                rospy.sleep(0.3)
+
+		# Shutdown everything
+        	self.OFF3_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.OFF2_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.heatOFF_pub.publish(Empty())
+        	rospy.sleep(0.01)
+
+        else:
+
+		tosay = String()
+		myint = Int32()
+        	tosay.data = "Bonne nuit."
+        	self.french_pub.publish(tosay)
+        	rospy.sleep(0.01)
+
+        	myint.data = 1
+        	self.brightness1_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	myint.data = 6
+        	self.brightness2_pub.publish(myint)
+        	rospy.sleep(0.01)
+        	myint.data = 6
+        	self.brightness3_pub.publish(myint)
+        	rospy.sleep(0.3)
+
+		# Shutdown everything
+        	self.OFF3_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.OFF2_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.OFF1_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.heatOFF_pub.publish(Empty())
+        	rospy.sleep(0.01)
+
+        return 'succeeded'
+
+
+
+class BothGoingSleep(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+        self.jo_status = 1
+        self.carole_status = 1
+
+	tosay = String()
+	myint = Int32()
+        tosay.data = "Il est l'heure d'aller dormir."
+        self.french_pub.publish(tosay)
+        rospy.sleep(0.01)
+        self.ON3_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.ON2_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.ON1_pub.publish(Empty())
+        rospy.sleep(0.01)
+        myint.data = 175
+        self.color1_pub.publish(myint)
+        rospy.sleep(0.01)
+        self.color3_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 2
+        self.brightness1_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 10
+        self.brightness2_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 9
+        self.brightness3_pub.publish(myint)
+        rospy.sleep(0.01)
+
+        return 'succeeded'
+
+
+class BothInBed(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+
+        tosay = String()
+        myint = Int32()
+        tosay.data = "Bonne nuit."
+        self.french_pub.publish(tosay)
+        rospy.sleep(0.01)
+
+        myint.data = 1
+        self.brightness1_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 6
+        self.brightness2_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 6
+        self.brightness3_pub.publish(myint)
+        rospy.sleep(0.3)
+
+        # Shutdown everything
+        self.OFF3_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.OFF2_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.OFF1_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.heatOFF_pub.publish(Empty())
+        rospy.sleep(0.01)
+
+        return 'succeeded'
+
+class JoWakingUp(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+	self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+	self.OFF1_pub = rospy.Publisher('/MILIGHT/light1OFF', Empty)
+	self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.white3_pub = rospy.Publisher('/MILIGHT/light3White', Empty)
+	self.ON_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.heatON_pub = rospy.Publisher('/HOME/showerHeatON', Empty)
+        self.heatOFF_pub = rospy.Publisher('/HOME/showerHeatOFF', Empty)
+        self.weather_pub = rospy.Publisher('/NESTOR/weather', Empty)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+        self.music_pub = rospy.Publisher('/NESTOR/radio_jap', Empty)
+
+    def execute(self, userdata):
+
+	self.jo_status = 0
+
+        if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+
+                #self.ON_pub.publish(Empty())
+                myint = Int32()
+
+                rospy.sleep(120)
+
+                self.ON2_pub.publish(Empty())
+                rospy.sleep(0.01)
+                self.ON_pub.publish(Empty())
+                rospy.sleep(0.01)
+
+                self.white3_pub.publish(Empty())
+                rospy.sleep(0.03)
+                myint.data = 14
+                self.brightness3_pub.publish(myint)
+
+                rospy.sleep(120)
+                rospy.sleep(0.01)
+                self.heatON_pub.publish(Empty())
+                rospy.sleep(0.01)
+                #self.music_pub.publish(Empty())
+
+                rospy.sleep(60)
+                #self.weather_pub.publish(Empty())
+
+                rospy.sleep(240)
+                self.heatOFF_pub.publish(Empty())
+
+
+	else:
+
+		#self.ON_pub.publish(Empty())
+        	myint = Int32()
+
+		myint.data = 175
+		self.color1_pub.publish(myint)
+		rospy.sleep(0.01)
+		myint.data = 1
+                self.brightness1_pub.publish(myint)
+
+        	rospy.sleep(120)
+
+        	my_string=String()
+        	my_string.data="Il est l'heure de se lever. Debout les feignants."
+        	self.french_pub.publish(my_string)
+
+        	self.ON2_pub.publish(Empty())
+		rospy.sleep(0.01)
+        	self.ON_pub.publish(Empty())
+		rospy.sleep(0.01)
+
+        	self.white3_pub.publish(Empty())
+                rospy.sleep(0.03)
+                myint.data = 14
+                self.brightness3_pub.publish(myint)
+
+		for brightness in range(2,9):
+			color=175-2*brightness
+			myint.data = color
+			self.color1_pub.publish(myint)			
+        		rospy.sleep(0.01)
+			myint.data = brightness
+			self.brightness1_pub.publish(myint)
+                	rospy.sleep(30) 
+
+		for brightness in range(10,16):
+                        myint.data = brightness
+                        self.brightness1_pub.publish(myint)
+                        rospy.sleep(40)
+
+        	rospy.sleep(120)
+        	my_string.data="Chauffage de la salle de bain en cours."
+        	self.french_pub.publish(my_string)
+        	rospy.sleep(0.01)
+        	self.heatON_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.music_pub.publish(Empty())
+        	rospy.sleep(0.01)
+        	self.OFF1_pub.publish(Empty())
+
+        	rospy.sleep(60)
+        	self.weather_pub.publish(Empty())
+
+        	rospy.sleep(240)
+        	self.heatOFF_pub.publish(Empty())
+
+        return 'succeeded'
+
+class BothWakingUp(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.OFF1_pub = rospy.Publisher('/MILIGHT/light1OFF', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.white3_pub = rospy.Publisher('/MILIGHT/light3White', Empty)
+        self.ON_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.heatON_pub = rospy.Publisher('/HOME/showerHeatON', Empty)
+        self.heatOFF_pub = rospy.Publisher('/HOME/showerHeatOFF', Empty)
+        self.weather_pub = rospy.Publisher('/NESTOR/weather', Empty)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+        self.music_pub = rospy.Publisher('/NESTOR/radio_jap', Empty)
+
+    def execute(self, userdata):
+
+        self.jo_status = 0
+        self.carole_status = 0
+
+        #self.ON_pub.publish(Empty())
+        myint = Int32()
+
+        myint.data = 175
+        self.color1_pub.publish(myint)
+        rospy.sleep(0.01)
+        myint.data = 1
+        self.brightness1_pub.publish(myint)
+
+        rospy.sleep(120)
+
+        my_string=String()
+        my_string.data="Il est l'heure de se lever. Debout les feignants."
+        self.french_pub.publish(my_string)
+
+        self.ON2_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.ON_pub.publish(Empty())
+        rospy.sleep(0.01)
+
+        self.white3_pub.publish(Empty())
+        rospy.sleep(0.03)
+        myint.data = 14
+        self.brightness3_pub.publish(myint)
+
+        for brightness in range(2,9):
+        	color=175-2*brightness
+                myint.data = color
+                self.color1_pub.publish(myint)
+                rospy.sleep(0.01)
+                myint.data = brightness
+                self.brightness1_pub.publish(myint)
+                rospy.sleep(30)
+
+        for brightness in range(10,16):
+                myint.data = brightness
+                self.brightness1_pub.publish(myint)
+                rospy.sleep(40)
+
+        rospy.sleep(120)
+        my_string.data="Chauffage de la salle de bain en cours."
+        self.french_pub.publish(my_string)
+        rospy.sleep(0.01)
+        self.heatON_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.music_pub.publish(Empty())
+        rospy.sleep(0.01)
+        self.OFF1_pub.publish(Empty())
+
+        rospy.sleep(60)
+        self.weather_pub.publish(Empty())
+
+        rospy.sleep(240)
+        self.heatOFF_pub.publish(Empty())
+
+        return 'succeeded'
+
+class JoGoingOut(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+        self.jo_status = 2
+
+        if self.carole_status == 1: # Carole is already sleeping ->
+		return 'succeeded'
+	else:
+		return 'succeeded'
+
+class JoIsOut(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+        if self.carole_status == 1: # Carole is already sleeping ->
+                return 'succeeded'
+        else:
+                return 'succeeded'
+
+
+class JoBackHome(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+        self.jo_status = 0
+
+        if self.carole_status == 1: # Carole is already sleeping ->
+                return 'succeeded'
+        else:
+                return 'succeeded'
+
+
+
+class BothBackHome(State):
+    def __init__(self):
+        State.__init__(self, outcomes=['succeeded'])
+        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
+        self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
+        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
+        self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
+        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
+        self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
+        self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+
+    def execute(self, userdata):
+
+        self.jo_status = 0
+        self.carole_status = 0
+
+        return 'succeeded'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -61,25 +644,43 @@ class SMACHAI():
 
 
 
+#####################################
+# JO IS AWAKE
+#####################################
+
 	# State machine for Jo-awake-go-sleep
         self.sm_jo_awake_sleep = StateMachine(outcomes=['succeeded','aborted','preempted'])
         self.sm_jo_awake_sleep.userdata.test = 0.1
 
         with self.sm_jo_awake_sleep:
-	    StateMachine.add('LOOK_WAKE', MonitorState("/HOME/wake_up", Empty, self.empty_cb), transitions={'valid':'PAUSE1', 'preempted':'preempted', 'invalid':'PAUSE1'})
-            StateMachine.add('PAUSE1', Pause(),
-                             transitions={'succeeded':'succeeded',
-                                          'aborted':'aborted'})
+	    StateMachine.add('LOOK_WAKE', MonitorState("/JO/sleep", Empty, self.empty_cb), transitions={'valid':'GOING_SLEEP', 'preempted':'preempted', 'invalid':'GOING_SLEEP'})
+            StateMachine.add('GOING_SLEEP', JoGoingSleep(),
+                             transitions={'succeeded':'LOOK_IN_BED'})
+	    StateMachine.add('LOOK_IN_BED', MonitorState("/myo_disconnected", Empty, self.empty_cb), transitions={'valid':'IN_BED', 'preempted':'preempted', 'invalid':'IN_BED'})
+	    StateMachine.add('IN_BED', JoInBed(),
+                             transitions={'succeeded':'succeeded'})
+
+        # State machine for Jo-awake-bothgo-sleep
+        self.sm_jo_awake_bothsleep = StateMachine(outcomes=['succeeded','aborted','preempted'])
+        self.sm_jo_awake_bothsleep.userdata.test = 0.1
+
+        with self.sm_jo_awake_bothsleep:
+            StateMachine.add('LOOK_WAKE', MonitorState("/BOTH/sleep", Empty, self.empty_cb), transitions={'valid':'GOING_SLEEP', 'preempted':'preempted', 'invalid':'GOING_SLEEP'})
+            StateMachine.add('GOING_SLEEP', BothGoingSleep(),
+                             transitions={'succeeded':'LOOK_IN_BED'})
+            StateMachine.add('LOOK_IN_BED', MonitorState("/myo_disconnected", Empty, self.empty_cb), transitions={'valid':'IN_BED', 'preempted':'preempted', 'invalid':'IN_BED'})
+            StateMachine.add('IN_BED', BothInBed(),
+                             transitions={'succeeded':'succeeded'})
+
 
         # State machine for Jo-awake-go-out
         self.sm_jo_awake_out = StateMachine(outcomes=['succeeded','aborted','preempted'])
         self.sm_jo_awake_out.userdata.test = 0.1
 
         with self.sm_jo_awake_out:
-            StateMachine.add('LOOK_OUT', MonitorState("/HOME/jo_go_out", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
+            StateMachine.add('LOOK_OUT', MonitorState("/JO/go_out", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
             StateMachine.add('PAUSE', Pause(),
-                             transitions={'succeeded':'succeeded',
-                                          'aborted':'aborted'})
+                             transitions={'succeeded':'succeeded'})
 
 
         # State machine for Jo-awake
@@ -90,41 +691,101 @@ class SMACHAI():
 
         with self.sm_jo_awake:
             Concurrence.add('SM_GO_TO_SLEEP', self.sm_jo_awake_sleep)
+            Concurrence.add('SM_BOTH_GO_TO_SLEEP', self.sm_jo_awake_bothsleep)
             Concurrence.add('SM_GO_OUT', self.sm_jo_awake_out)
 
-	# State machine for Jo-sleep
-        self.sm_jo_sleep = StateMachine(outcomes=['succeeded','aborted','preempted', 'wake_up'])
+
+#####################################
+# JO IS SLEEPING
+#####################################
+
+        # State machine for Jo-sleep-waking
+        self.sm_jo_sleep_waking = StateMachine(outcomes=['succeeded','aborted','preempted'])
+        self.sm_jo_sleep_waking.userdata.test = 0.1
+
+        with self.sm_jo_sleep_waking:
+	    StateMachine.add('WAIT_WAKE_UP', MonitorState("/JO/wake_up", Empty, self.empty_cb), transitions={'valid':'WAKING_UP', 'preempted':'preempted', 'invalid':'WAKING_UP'})
+            StateMachine.add('WAKING_UP', JoWakingUp(),
+                             transitions={'succeeded':'succeeded'})
+
+        # State machine for Jo-sleep-bothwaking
+        self.sm_jo_sleep_bothwaking = StateMachine(outcomes=['succeeded','aborted','preempted'])
+        self.sm_jo_sleep_bothwaking.userdata.test = 0.1
+
+        with self.sm_jo_sleep_bothwaking:
+            StateMachine.add('WAIT_WAKE_UP', MonitorState("/BOTH/wake_up", Empty, self.empty_cb), transitions={'valid':'WAKING_UP', 'preempted':'preempted', 'invalid':'WAKING_UP'})
+            StateMachine.add('WAKING_UP', BothWakingUp(),
+                             transitions={'succeeded':'succeeded'})
+
+
+
+	# State machine for Jo-awake
+        self.sm_jo_sleep = Concurrence(outcomes=['succeeded','aborted','preempted', 'wake_up'],
+                                        default_outcome='succeeded',
+                                        child_termination_cb=self.jo_sleep_child_termination_cb,
+                                        outcome_cb=self.jo_sleep_outcome_cb)
         self.sm_jo_sleep.userdata.test = 0.1
 
         with self.sm_jo_sleep:
-            StateMachine.add('WAIT_WAKE_UP', MonitorState("/HOME/jo_wake_up", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
-            StateMachine.add('PAUSE', Pause(),
-                             transitions={'succeeded':'wake_up',
-                                          'aborted':'aborted'})
+	    Concurrence.add('SM_WAKE_UP', self.sm_jo_sleep_waking)
+	    Concurrence.add('SM_BOTH_WAKE_UP', self.sm_jo_sleep_bothwaking)
+
+
+#####################################
+# JO IS OUT         TODO
+#####################################
+
+        # State machine for Jo-out-back
+        self.sm_jo_out_back = StateMachine(outcomes=['succeeded','aborted','preempted'])
+        self.sm_jo_out_back.userdata.test = 0.1
+
+        with self.sm_jo_out_back:
+            StateMachine.add('WAIT_BACK_HOME', MonitorState("/JO/back_home", Empty, self.empty_cb), transitions={'valid':'WAIT_MYO', 'preempted':'preempted', 'invalid':'WAIT_MYO'})
+            StateMachine.add('WAIT_MYO', MonitorState("/myo_connected", Empty, self.empty_cb), transitions={'valid':'COMING_BACK', 'preempted':'preempted', 'invalid':'COMING_BACK'})
+            StateMachine.add('COMING_BACK', JoBackHome(),
+                             transitions={'succeeded':'succeeded'})
+
+        # State machine for Jo-out-bothback
+        self.sm_jo_out_bothback = StateMachine(outcomes=['succeeded','aborted','preempted'])
+        self.sm_jo_out_bothback.userdata.test = 0.1
+
+        with self.sm_jo_out_bothback:
+            StateMachine.add('WAIT_BACK_HOME', MonitorState("/BOTH/back_home", Empty, self.empty_cb), transitions={'valid':'WAIT_MYO', 'preempted':'preempted', 'invalid':'WAIT_MYO'})
+            StateMachine.add('WAIT_MYO', MonitorState("/myo_connected", Empty, self.empty_cb), transitions={'valid':'COMING_BACK', 'preempted':'preempted', 'invalid':'COMING_BACK'})
+            StateMachine.add('COMING_BACK', BothBackHome(), 
+                             transitions={'succeeded':'succeeded'})
+
+
 
 	# State machine for Jo-out
-        self.sm_jo_out = StateMachine(outcomes=['succeeded','aborted','preempted', 'back_home'])
+	self.sm_jo_out = Concurrence(outcomes=['succeeded','aborted','preempted', 'back_home'],
+                                        default_outcome='succeeded',
+                                        child_termination_cb=self.jo_out_child_termination_cb,
+                                        outcome_cb=self.jo_out_outcome_cb)
         self.sm_jo_out.userdata.test = 0.1
 
         with self.sm_jo_out:
-            StateMachine.add('WAIT_BACK_HOME', MonitorState("/HOME/jo_back_home", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
-            StateMachine.add('PAUSE', Pause(),
-                             transitions={'succeeded':'back_home',
-                                          'aborted':'aborted'})
+	    Concurrence.add('SM_BACK_HOME', self.sm_jo_out_back)
+            Concurrence.add('SM_BOTH_BACK_HOME', self.sm_jo_out_bothback)
 
 
+#####################################
+# TOP LVL JO SM
+#####################################
 
 	# State machine for JO
         self.sm_jo = StateMachine(outcomes=['succeeded','aborted','preempted'])
         self.sm_jo.userdata.test = 0.1
 
         with self.sm_jo:
-	    StateMachine.add('AWAKE', self.sm_jo_awake, transitions={'succeeded':'PAUSE', 'stop':'aborted', 'go_sleep':'SLEEP', 'go_out':'OUT'})
-	    StateMachine.add('SLEEP', self.sm_jo_sleep, transitions={'succeeded':'PAUSE', 'wake_up':'AWAKE'})
-	    StateMachine.add('OUT', self.sm_jo_out, transitions={'succeeded':'PAUSE', 'back_home':'AWAKE'})
-	    StateMachine.add('PAUSE', Pause(),
-                             transitions={'succeeded':'succeeded',
-                                          'aborted':'aborted'})
+	    StateMachine.add('AWAKE', self.sm_jo_awake, transitions={'succeeded':'succeeded', 'stop':'aborted', 'go_sleep':'SLEEP', 'go_out':'OUT'})
+	    StateMachine.add('SLEEP', self.sm_jo_sleep, transitions={'succeeded':'succeeded', 'wake_up':'AWAKE'})
+	    StateMachine.add('OUT', self.sm_jo_out, transitions={'succeeded':'succeeded', 'back_home':'AWAKE'})
+
+
+#####################################
+# TOP LVL CAROLE SM        TODO
+#####################################
 
 
         # State machine for CAROLE
@@ -139,6 +800,11 @@ class SMACHAI():
 
 
 
+#####################################
+# TOP LVL EAT SM        TODO
+#####################################
+
+
         # State machine for EAT
         self.sm_eat = StateMachine(outcomes=['succeeded','aborted','preempted'])
         self.sm_eat.userdata.test = 0.1
@@ -150,19 +816,33 @@ class SMACHAI():
                                           'aborted':'aborted'})
 
 
+#####################################
+# TOP LVL SHOWER SM 
+#####################################
+
+
 
         # State machine for SHOWER
         self.sm_shower = StateMachine(outcomes=['succeeded','aborted','preempted'])
         self.sm_shower.userdata.test = 0.1
 
         with self.sm_shower:
-	    StateMachine.add('WAIT1', MonitorState("/TEST/wait1", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
-            StateMachine.add('PAUSE', Pause(),
+	    StateMachine.add('WAIT1', MonitorState("/TEST/wait1", Empty, self.empty_cb), transitions={'valid':'PREPARING_SHOWER', 'preempted':'preempted', 'invalid':'PREPARING_SHOWER'})
+            StateMachine.add('PREPARING_SHOWER', PreparingShower(),
+                             transitions={'succeeded':'GO_SHOWER',
+                                          'aborted':'WAIT1'})
+            StateMachine.add('GO_SHOWER', GoShower(),
+                             transitions={'succeeded':'STOP_SHOWER',
+                                          'aborted':'aborted'})
+            StateMachine.add('STOP_SHOWER', StopShower(),
                              transitions={'succeeded':'WAIT1',
                                           'aborted':'aborted'})
 
 
 
+#####################################
+# TOP LVL SM 
+#####################################
 
 
         # Create the top level state machine
@@ -273,6 +953,8 @@ class SMACHAI():
         # If the current navigation task has succeeded, return True
         if outcome_map['SM_GO_TO_SLEEP'] == 'succeeded':
             return True
+        if outcome_map['SM_BOTH_GO_TO_SLEEP'] == 'succeeded':
+            return True
         if outcome_map['SM_GO_OUT'] == 'succeeded':
             return True
         else:
@@ -284,8 +966,53 @@ class SMACHAI():
         # If the battery is below threshold, return the 'recharge' outcome
         if outcome_map['SM_GO_TO_SLEEP'] == 'succeeded':
             return 'go_sleep'
+        elif outcome_map['SM_BOTH_GO_TO_SLEEP'] == 'succeeded':
+            return 'go_sleep'
         elif outcome_map['SM_GO_OUT'] == 'succeeded':
             return 'go_out'
+        else:
+            return 'stop'
+
+
+    # Gets called when ANY child state terminates
+    def jo_sleep_child_termination_cb(self, outcome_map):
+        # If the current navigation task has succeeded, return True
+        if outcome_map['SM_WAKE_UP'] == 'succeeded':
+            return True
+        if outcome_map['SM_BOTH_WAKE_UP'] == 'succeeded':
+            return True
+        else:
+            return False
+
+
+    # Gets called when ALL child states are terminated
+    def jo_sleep_outcome_cb(self, outcome_map):
+        # If the battery is below threshold, return the 'recharge' outcome
+        if outcome_map['SM_WAKE_UP'] == 'succeeded':
+            return 'wake_up'
+        elif outcome_map['SM_BOTH_WAKE_UP'] == 'succeeded':
+            return 'wake_up'
+        else:
+            return 'stop'
+
+    # Gets called when ANY child state terminates
+    def jo_out_child_termination_cb(self, outcome_map):
+        # If the current navigation task has succeeded, return True
+        if outcome_map['SM_BACK_HOME'] == 'succeeded':
+            return True
+        if outcome_map['SM_BOTH_BACK_HOME'] == 'succeeded':
+            return True
+        else:
+            return False
+
+
+    # Gets called when ALL child states are terminated
+    def jo_out_outcome_cb(self, outcome_map):
+        # If the battery is below threshold, return the 'recharge' outcome
+        if outcome_map['SM_BACK_HOME'] == 'succeeded':
+            return 'back_home'
+        elif outcome_map['SM_BOTH_BACK_HOME'] == 'succeeded':
+            return 'back_home'
         else:
             return 'stop'
 
