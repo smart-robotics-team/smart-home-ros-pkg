@@ -33,6 +33,10 @@ from tf.transformations import quaternion_from_euler
 from math import  pi
 from collections import OrderedDict
 
+# GLOBAL VARIABLE ! VERY BAD !
+jo_status = 0 # 0:awake 1:sleep 2:out 
+carole_status = 0 # 0:awake 1:sleep 2:out
+
 class Pause(State):
     def __init__(self):
         State.__init__(self, outcomes=['succeeded','aborted','preempted'])
@@ -52,10 +56,12 @@ class PreparingShower(State):
         pass
 
     def execute(self, userdata):
-        if (self.jo_status != 0) and (self.carole_status != 0): # No one is available for a shower
+	global jo_status
+	global carole_status
+        if (jo_status != 0) and (carole_status != 0): # No one is available for a shower
 		rospy.loginfo("No shower possible")
 		return 'aborted'
-        elif ((self.jo_status == 0) and (self.carole_status != 0)) or ((self.jo_status != 0) and (self.carole_status == 0)): # No sound
+        elif ((jo_status == 0) and (carole_status != 0)) or ((jo_status != 0) and (carole_status == 0)): # No sound
 		rospy.loginfo("Heating...")
         	self.heat_pub.publish(Empty())
         	rospy.sleep(300)
@@ -76,8 +82,10 @@ class GoShower(State):
         pass
 
     def execute(self, userdata):
+	global jo_status
+	global carole_status
         rospy.loginfo("Going into shower...")
-	if (self.jo_status != 1) and (self.carole_status != 1):
+	if (jo_status != 1) and (carole_status != 1):
         	my_string = String()
         	my_string.data = "La salle de bain est chaude. Vous pouvez aller vous doucher."
         	self.french_pub.publish(my_string)
@@ -92,8 +100,10 @@ class StopShower(State):
         pass
 
     def execute(self, userdata):
+	global jo_status
+	global carole_status
         rospy.loginfo("Stop shower...")
-        if (self.jo_status != 1) and (self.carole_status != 1):
+        if (jo_status != 1) and (carole_status != 1):
 		my_string = String()
         	my_string.data = "Il est temps de sortir de la douche."
         	self.french_pub.publish(my_string)
@@ -116,10 +126,12 @@ class JoGoingSleep(State):
         self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
 
     def execute(self, userdata):
+	global jo_status
+	global carole_status
 
-	self.jo_status = 1
+	jo_status = 1
 
-	if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+	if carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
                 myint = Int32() 
                 rospy.sleep(0.01)
                 self.ON3_pub.publish(Empty())
@@ -169,21 +181,24 @@ class JoGoingSleep(State):
 class JoInBed(State):
     def __init__(self):
         State.__init__(self, outcomes=['succeeded'])
-        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.OFF1_pub = rospy.Publisher('/MILIGHT/light1OFF', Empty)
         self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
         self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
-        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.OFF2_pub = rospy.Publisher('/MILIGHT/light2OFF', Empty)
         self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
         self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
-        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.OFF3_pub = rospy.Publisher('/MILIGHT/light3OFF', Empty)
         self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
         self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
         self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+	self.heatOFF_pub = rospy.Publisher('/HOME/showerHeatOFF', Empty)
 
     def execute(self, userdata):
 
+	global jo_status
+	global carole_status
 
-        if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+        if carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
  
                 myint = Int32()
                 myint.data = 6
@@ -248,9 +263,11 @@ class BothGoingSleep(State):
         self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
 
     def execute(self, userdata):
+	global jo_status
+	global carole_status
 
-        self.jo_status = 1
-        self.carole_status = 1
+        jo_status = 1
+        carole_status = 1
 
 	tosay = String()
 	myint = Int32()
@@ -284,16 +301,17 @@ class BothGoingSleep(State):
 class BothInBed(State):
     def __init__(self):
         State.__init__(self, outcomes=['succeeded'])
-        self.ON1_pub = rospy.Publisher('/MILIGHT/light1ON', Empty)
+        self.OFF1_pub = rospy.Publisher('/MILIGHT/light1OFF', Empty)
         self.color1_pub = rospy.Publisher('/MILIGHT/light1Color', Int32)
         self.brightness1_pub = rospy.Publisher('/MILIGHT/light1Brightness', Int32)
-        self.ON2_pub = rospy.Publisher('/MILIGHT/light2ON', Empty)
+        self.OFF2_pub = rospy.Publisher('/MILIGHT/light2OFF', Empty)
         self.color2_pub = rospy.Publisher('/MILIGHT/light2Color', Int32)
         self.brightness2_pub = rospy.Publisher('/MILIGHT/light2Brightness', Int32)
-        self.ON3_pub = rospy.Publisher('/MILIGHT/light3ON', Empty)
+        self.OFF3_pub = rospy.Publisher('/MILIGHT/light3OFF', Empty)
         self.color3_pub = rospy.Publisher('/MILIGHT/light3Color', Int32)
         self.brightness3_pub = rospy.Publisher('/MILIGHT/light3Brightness', Int32)
         self.french_pub = rospy.Publisher('/NESTOR/french_voice', String)
+	self.heatOFF_pub = rospy.Publisher('/HOME/showerHeatOFF', Empty)
 
     def execute(self, userdata):
 
@@ -345,9 +363,12 @@ class JoWakingUp(State):
 
     def execute(self, userdata):
 
-	self.jo_status = 0
+	global jo_status
+	global carole_status
 
-        if self.carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
+	jo_status = 0
+
+        if carole_status == 1: # Carole is already sleeping -> Dont say anything and dont light up restroom
 
                 #self.ON_pub.publish(Empty())
                 myint = Int32()
@@ -455,8 +476,11 @@ class BothWakingUp(State):
 
     def execute(self, userdata):
 
-        self.jo_status = 0
-        self.carole_status = 0
+	global jo_status
+	global carole_status
+
+        jo_status = 0
+        carole_status = 0
 
         #self.ON_pub.publish(Empty())
         myint = Int32()
@@ -531,9 +555,12 @@ class JoGoingOut(State):
 
     def execute(self, userdata):
 
-        self.jo_status = 2
+	global jo_status
+	global carole_status
 
-        if self.carole_status == 1: # Carole is already sleeping ->
+        jo_status = 2
+
+        if carole_status == 1: # Carole is already sleeping ->
 		return 'succeeded'
 	else:
 		return 'succeeded'
@@ -554,7 +581,10 @@ class JoIsOut(State):
 
     def execute(self, userdata):
 
-        if self.carole_status == 1: # Carole is already sleeping ->
+	global jo_status
+	global carole_status
+
+        if carole_status == 1: # Carole is already sleeping ->
                 return 'succeeded'
         else:
                 return 'succeeded'
@@ -576,9 +606,12 @@ class JoBackHome(State):
 
     def execute(self, userdata):
 
-        self.jo_status = 0
+	global jo_status
+	global carole_status
 
-        if self.carole_status == 1: # Carole is already sleeping ->
+        jo_status = 0
+
+        if carole_status == 1: # Carole is already sleeping ->
                 return 'succeeded'
         else:
                 return 'succeeded'
@@ -601,8 +634,11 @@ class BothBackHome(State):
 
     def execute(self, userdata):
 
-        self.jo_status = 0
-        self.carole_status = 0
+	global jo_status
+	global carole_status
+
+        jo_status = 0
+        carole_status = 0
 
         return 'succeeded'
 
@@ -638,8 +674,6 @@ class SMACHAI():
         
 
 
-        self.jo_status = 0 # 0:awake 1:sleep 2:out 
-        self.carole_status = 0 # 0:awake 1:sleep 2:out
 
 
 
@@ -650,7 +684,6 @@ class SMACHAI():
 
 	# State machine for Jo-awake-go-sleep
         self.sm_jo_awake_sleep = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_awake_sleep.userdata.test = 0.1
 
         with self.sm_jo_awake_sleep:
 	    StateMachine.add('LOOK_WAKE', MonitorState("/JO/sleep", Empty, self.empty_cb), transitions={'valid':'GOING_SLEEP', 'preempted':'preempted', 'invalid':'GOING_SLEEP'})
@@ -662,7 +695,6 @@ class SMACHAI():
 
         # State machine for Jo-awake-bothgo-sleep
         self.sm_jo_awake_bothsleep = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_awake_bothsleep.userdata.test = 0.1
 
         with self.sm_jo_awake_bothsleep:
             StateMachine.add('LOOK_WAKE', MonitorState("/BOTH/sleep", Empty, self.empty_cb), transitions={'valid':'GOING_SLEEP', 'preempted':'preempted', 'invalid':'GOING_SLEEP'})
@@ -675,7 +707,6 @@ class SMACHAI():
 
         # State machine for Jo-awake-go-out
         self.sm_jo_awake_out = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_awake_out.userdata.test = 0.1
 
         with self.sm_jo_awake_out:
             StateMachine.add('LOOK_OUT', MonitorState("/JO/go_out", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
@@ -701,7 +732,6 @@ class SMACHAI():
 
         # State machine for Jo-sleep-waking
         self.sm_jo_sleep_waking = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_sleep_waking.userdata.test = 0.1
 
         with self.sm_jo_sleep_waking:
 	    StateMachine.add('WAIT_WAKE_UP', MonitorState("/JO/wake_up", Empty, self.empty_cb), transitions={'valid':'WAKING_UP', 'preempted':'preempted', 'invalid':'WAKING_UP'})
@@ -710,7 +740,6 @@ class SMACHAI():
 
         # State machine for Jo-sleep-bothwaking
         self.sm_jo_sleep_bothwaking = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_sleep_bothwaking.userdata.test = 0.1
 
         with self.sm_jo_sleep_bothwaking:
             StateMachine.add('WAIT_WAKE_UP', MonitorState("/BOTH/wake_up", Empty, self.empty_cb), transitions={'valid':'WAKING_UP', 'preempted':'preempted', 'invalid':'WAKING_UP'})
@@ -724,7 +753,6 @@ class SMACHAI():
                                         default_outcome='succeeded',
                                         child_termination_cb=self.jo_sleep_child_termination_cb,
                                         outcome_cb=self.jo_sleep_outcome_cb)
-        self.sm_jo_sleep.userdata.test = 0.1
 
         with self.sm_jo_sleep:
 	    Concurrence.add('SM_WAKE_UP', self.sm_jo_sleep_waking)
@@ -737,7 +765,6 @@ class SMACHAI():
 
         # State machine for Jo-out-back
         self.sm_jo_out_back = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_out_back.userdata.test = 0.1
 
         with self.sm_jo_out_back:
             StateMachine.add('WAIT_BACK_HOME', MonitorState("/JO/back_home", Empty, self.empty_cb), transitions={'valid':'WAIT_MYO', 'preempted':'preempted', 'invalid':'WAIT_MYO'})
@@ -747,7 +774,6 @@ class SMACHAI():
 
         # State machine for Jo-out-bothback
         self.sm_jo_out_bothback = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo_out_bothback.userdata.test = 0.1
 
         with self.sm_jo_out_bothback:
             StateMachine.add('WAIT_BACK_HOME', MonitorState("/BOTH/back_home", Empty, self.empty_cb), transitions={'valid':'WAIT_MYO', 'preempted':'preempted', 'invalid':'WAIT_MYO'})
@@ -762,7 +788,6 @@ class SMACHAI():
                                         default_outcome='succeeded',
                                         child_termination_cb=self.jo_out_child_termination_cb,
                                         outcome_cb=self.jo_out_outcome_cb)
-        self.sm_jo_out.userdata.test = 0.1
 
         with self.sm_jo_out:
 	    Concurrence.add('SM_BACK_HOME', self.sm_jo_out_back)
@@ -775,7 +800,6 @@ class SMACHAI():
 
 	# State machine for JO
         self.sm_jo = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_jo.userdata.test = 0.1
 
         with self.sm_jo:
 	    StateMachine.add('AWAKE', self.sm_jo_awake, transitions={'succeeded':'succeeded', 'stop':'aborted', 'go_sleep':'SLEEP', 'go_out':'OUT'})
@@ -790,7 +814,6 @@ class SMACHAI():
 
         # State machine for CAROLE
         self.sm_carole = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_carole.userdata.test = 0.1
 
         with self.sm_carole:
 	    StateMachine.add('WAIT3', MonitorState("/TEST/wait3", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
@@ -807,7 +830,6 @@ class SMACHAI():
 
         # State machine for EAT
         self.sm_eat = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_eat.userdata.test = 0.1
 
         with self.sm_eat:
 	    StateMachine.add('WAIT2', MonitorState("/TEST/wait2", Empty, self.empty_cb), transitions={'valid':'PAUSE', 'preempted':'preempted', 'invalid':'PAUSE'})
@@ -824,10 +846,9 @@ class SMACHAI():
 
         # State machine for SHOWER
         self.sm_shower = StateMachine(outcomes=['succeeded','aborted','preempted'])
-        self.sm_shower.userdata.test = 0.1
 
         with self.sm_shower:
-	    StateMachine.add('WAIT1', MonitorState("/TEST/wait1", Empty, self.empty_cb), transitions={'valid':'PREPARING_SHOWER', 'preempted':'preempted', 'invalid':'PREPARING_SHOWER'})
+	    StateMachine.add('WAIT_SHOWER', MonitorState("/HOME/go_shower", Empty, self.empty_cb), transitions={'valid':'PREPARING_SHOWER', 'preempted':'preempted', 'invalid':'PREPARING_SHOWER'})
             StateMachine.add('PREPARING_SHOWER', PreparingShower(),
                              transitions={'succeeded':'GO_SHOWER',
                                           'aborted':'WAIT1'})
