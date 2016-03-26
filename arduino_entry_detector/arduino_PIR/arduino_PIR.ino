@@ -88,7 +88,7 @@ void loop()
 
   last_reading = (reading1 | reading2);
   
-  if( abs(last_time_sensing*1.0 - millis()*1.0) > 3000 )
+  if( abs(last_time_sensing*1.0 - millis()*1.0) > (20.0*60.0*1000.0) ) // every 20 minutes
   {
 	// Reading temperature or humidity takes about 250 milliseconds!
         // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
