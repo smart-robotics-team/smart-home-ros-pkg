@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+
+<launch>
+  <master auto="start"/>
+
+  <!-- RADIO NODE -->
+  <node pkg="nestor_command" type="nestor_radio" name="HOME_radio" output="screen">
+    <remap from="/NESTOR/radio_volume" to="/NESTOR/radio_volume" />
+    <remap from="/NESTOR/radio_metal" to="/NESTOR/radio_metal" />
+    <remap from="/NESTOR/radio_jap" to="/NESTOR/radio_jap" />
+    <remap from="/NESTOR/radio_90s" to="/NESTOR/radio_90s" />
+    <remap from="/NESTOR/radio_off" to="/NESTOR/radio_off" />
+    <remap from="/NESTOR/radio_special1" to="/NESTOR/radio_special1" />
+  </node>
+
+</launch>

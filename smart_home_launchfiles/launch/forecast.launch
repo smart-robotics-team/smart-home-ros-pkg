@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+
+<launch>
+  <master auto="start"/>
+
+  <!-- FORECAST NODE -->
+  <node pkg="nestor_command" type="nestor_weather" name="HOME_weather" output="screen">
+    <remap from="/NESTOR/english_voice" to="/HOME/english_weather" />
+    <remap from="/NESTOR/french_voice" to="/HOME/french_weather" />
+    <remap from="/NESTOR/weather" to="/HOME/say_weather" />
+  </node>
+
+  <!-- RELAY NODE -->
+  <node pkg="topic_tools" type="relay" name="HOME_weather_relay_english_voice" output="screen" args="/HOME/english_weather /HOME/entry_english_voice">
+  </node>
+
+  <!-- RELAY NODE -->
+  <node pkg="topic_tools" type="relay" name="HOME_weather_relay_english_slack" output="screen" args="/HOME/english_weather /HOME/from_ros_to_slack">
+  </node>
+
+  <!-- RELAY NODE -->
+  <node pkg="topic_tools" type="relay" name="HOME_weather_relay_french_voice" output="screen" args="/HOME/french_weather /HOME/entry_french_voice">
+  </node>
+
+  <!-- RELAY NODE -->
+  <node pkg="topic_tools" type="relay" name="HOME_weather_relay_french_slack" output="screen" args="/HOME/french_weather /HOME/from_ros_to_slack">
+  </node>
+
+
+</launch>
