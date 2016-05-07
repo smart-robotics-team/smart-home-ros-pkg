@@ -7,7 +7,7 @@
   <node pkg="nestor_command" type="nestor_weather" name="HOME_weather" output="screen">
     <remap from="/NESTOR/english_voice" to="/HOME/english_weather" />
     <remap from="/NESTOR/french_voice" to="/HOME/french_weather" />
-    <remap from="/NESTOR/weather" to="/HOME/say_weather" />
+    <remap from="/NESTOR/weather" to="/NESTOR/weather" />
   </node>
 
   <!-- RELAY NODE -->

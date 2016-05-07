@@ -5,6 +5,10 @@
 
   <!-- RADIO NODE -->
   <node pkg="nestor_command" type="nestor_radio" name="HOME_radio" output="screen">
+    <param name="radio_metal_address" value="http://91.121.75.155:8000" />
+    <param name="radio_jap_address" value="http://198.27.80.17:8000" />
+    <param name="radio_90s_address" value="http://46.4.65.194:8043" />
+
     <remap from="/NESTOR/radio_volume" to="/NESTOR/radio_volume" />
     <remap from="/NESTOR/radio_metal" to="/NESTOR/radio_metal" />
     <remap from="/NESTOR/radio_jap" to="/NESTOR/radio_jap" />

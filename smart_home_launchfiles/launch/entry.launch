@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<launch>
+  <master auto="start"/>
+
+  <!-- NESTOR robot -->
+  <node pkg="nestor_command" type="nestor_voice" respawn="true" name="ENTRY_voice" output="screen">
+	<remap from="/NESTOR/french_voice" to="/HOME/entry_french_voice" />
+	<remap from="/NESTOR/english_voice" to="/HOME/entry_english_voice" />
+  </node>
+
+  <!-- NESTOR robot -->
+  <node pkg="easy_entry_light" type="easy_entry_light" respawn="true" name="ENTRY_easy_light" output="screen">
+  </node>
+
+  <!-- NESTOR robot -->
+  <node pkg="rosserial_python" type="serial_node.py" respawn="true" name="ENTRY_arduino_sensors" output="screen" args="/dev/ttyACM2">
+  </node>
+
+  <include file="$(find smart_home_launchfiles)/launch/forecast.launch">
+  </include>
+
+  <include file="$(find smart_home_launchfiles)/launch/radio.launch">
+  </include>
+
+
+</launch>
